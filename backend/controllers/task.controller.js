@@ -4,10 +4,10 @@ export const createTask = async (req, res) => {
     try {
         const { title, description, priority, dueDate, owner, completed } = req.body;
 
-        if (!title || !owner) {
+        if (!title || !description) {
             return res.status(400).json({
                 success: false,
-                message: "Title and owner are required"
+                message: "Title and description are required"
             });
         }
 
@@ -42,7 +42,7 @@ export const createTask = async (req, res) => {
 
 // get all task for Loged in User
 
-export const getAllTask = async (req, res) => {
+export const getAllTasks = async (req, res) => {
     try {
         const tasks = await Task.find({ owner: req.user.id }).sort({ createdAt: -1 })
         if (!tasks) {
@@ -68,7 +68,7 @@ export const getAllTask = async (req, res) => {
 
 // get single task by loggrd user
 
-export const getTaskbYId = async (req, res) => {
+export const getTaskById = async (req, res) => {
     try {
         const userId = req.user.id;
         const taskId = req.params.id;
@@ -102,27 +102,29 @@ export const getTaskbYId = async (req, res) => {
 
 export const updateTask = async (req, res) => {
     try {
-        const { title, description } = req.body;
         const taskId = req.params.id;
+        const data = { ...req.body };
 
-        const task = await Task.findById(taskId)
+        if (data.completed !== undefined) {
+            data.completed = data.completed === 'Yes' || data.completed === true;
+        }
+        const task = await Task.findOneAndUpdate(
+            { _id: taskId, owner: req.user.id },
+            data,
+            { new: true, runValidators: true }
+        );
 
-        // Update only provided fields
-        if (title) task.title = title;
-        if (description) task.description = description;
-        if (priority) task.priority = priority;
-        if (dueDate) task.dueDate = dueDate;
-        if (completed !== undefined) task.completed = completed;
-
-        await task.save()
-
-        await task.save()
+        if (!task) {
+            return res.status(404).json({
+                success: false,
+                message: "Task not found"
+            });
+        }
 
         res.status(200).json({
             success: true,
             task
-        })
-
+        });
 
     } catch (error) {
         console.log('Error in Update Task', error);
@@ -130,6 +132,36 @@ export const updateTask = async (req, res) => {
             success: false,
             message: "Error in Update task Controller",
             error: error.message
+        });
+    }
+};
+
+
+// delete  task 
+
+export const deleteTask = async (req, res) => {
+    try {
+        const deleteTask = await Task.findOneAndDelete({
+            _id: req.params.id, owner: req.user.id
         })
+
+        if (!deleteTask) {
+            return res.status(401).json({
+                success: false,
+                message: "task  not found and deleted"
+            })
+        }
+
+        res.status(200).json({
+            succes:true,
+            message:"Task Deleted"
+        })
+    } catch (error) {
+        console.log('Error in Delete Task', error);
+        res.status(500).json({
+            success: false,
+            message: "Error in Delete task Controller",
+            error: error.message
+        });
     }
 }
